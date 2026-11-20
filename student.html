@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>บัตรนักเรียนดิจิทัล · ร.ร.คลองพนสฤษดิ์พิทยา</title>
+
+  <!-- ตั้งค่า PWA สำหรับนักเรียน (Android & iPhone) -->
+  <link rel="manifest" href="./manifest-student.json">
+  <meta name="theme-color" content="#0b2e78">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="บัตรนักเรียน">
+  <link rel="apple-touch-icon" href="https://lh3.googleusercontent.com/d/1i2XJAMH7gTxs2MJ0K8xRqTiI_iS7u_8v=s0">
+  <link rel="icon" type="image/png" href="https://lh3.googleusercontent.com/d/1i2XJAMH7gTxs2MJ0K8xRqTiI_iS7u_8v=s0">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100dvh;
+      overflow: hidden;
+      background: #0b2e78;
+      font-family: 'Sarabun', system-ui, -apple-system, sans-serif;
+    }
+
+    /* หน้ากรอกรหัสนักเรียน (แสดงเฉพาะครั้งแรก หรือเมื่อกดเปลี่ยนรหัส) */
+    #loginView {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: linear-gradient(160deg, #0b2e78 0%, #165bc4 58%, #0a2a6e 100%);
+    }
+    #loginView[hidden] { display: none; }
+    .card {
+      width: 100%;
+      max-width: 380px;
+      background: #ffffff;
+      border-radius: 26px;
+      padding: 28px 24px 24px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(4, 18, 56, 0.38);
+      border-top: 5px solid #f5b921;
+    }
+    .crest {
+      width: 86px;
+      height: 86px;
+      padding: 7px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: 3px solid #f5b921;
+      box-shadow: 0 8px 20px rgba(11, 46, 120, 0.18);
+      object-fit: contain;
+      margin: 0 auto 12px;
+      display: block;
+    }
+    .card h1 {
+      font-family: 'Kanit', 'Sarabun', sans-serif;
+      font-size: 22px;
+      color: #0b2e78;
+      margin: 0 0 2px;
+    }
+    .card p {
+      font-size: 13.5px;
+      color: #526480;
+      margin: 0 0 20px;
+    }
+    .lbl {
+      display: block;
+      text-align: left;
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #1e3a6d;
+      margin-bottom: 6px;
+    }
+    .inp {
+      width: 100%;
+      height: 52px;
+      border-radius: 14px;
+      border: 2px solid #cbd9ee;
+      background: #f8fbff;
+      padding: 0 16px;
+      font: 700 20px/1 'Sarabun', sans-serif;
+      text-align: center;
+      letter-spacing: 1px;
+      color: #0f274a;
+      outline: none;
+      margin-bottom: 12px;
+    }
+    .inp:focus {
+      border-color: #1d5fc1;
+      background: #fff;
+      box-shadow: 0 0 0 4px rgba(29, 95, 193, 0.14);
+    }
+    .err {
+      color: #b91c1c;
+      font-size: 13px;
+      font-weight: 600;
+      margin: -4px 0 10px;
+      min-height: 18px;
+    }
+    .btn {
+      width: 100%;
+      height: 50px;
+      border: 0;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #1553bd, #2563eb);
+      color: #fff;
+      font: 700 16px/1 'Sarabun', sans-serif;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(21, 83, 189, 0.30);
+    }
+    .btn:active { transform: scale(0.98); }
+    .hint {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    /* หน้าโหลด */
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      background: linear-gradient(160deg, #0b2e78 0%, #1558c0 60%, #0a2a6e 100%);
+      color: #fff;
+      text-align: center;
+      transition: opacity .3s ease;
+    }
+    #splash.hide { opacity: 0; pointer-events: none; }
+    .spin {
+      width: 28px; height: 28px;
+      border: 3px solid rgba(255,255,255,.28);
+      border-top-color: #ffd43b;
+      border-radius: 50%;
+      animation: sp .8s linear infinite;
+    }
+    @keyframes sp { to { transform: rotate(360deg); } }
+
+    /* เฟรมบัตรดิจิทัลเต็มจอ */
+    #cardFrame {
+      width: 100%;
+      height: 100dvh;
+      border: 0;
+      display: block;
+      background: #f0f5fc;
+    }
+
+    /* ปุ่มเล็กมุมขวาล่างสำหรับสลับรหัสนักเรียน (เผื่อผู้ปกครองมีลูกหลายคน) */
+    #switchBtn {
+      position: fixed;
+      right: 12px;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      z-index: 12;
+      border: 1px solid rgba(203, 213, 225, 0.9);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(8px);
+      color: #123d78;
+      border-radius: 99px;
+      padding: 7px 13px;
+      font: 700 12px/1 'Sarabun', sans-serif;
+      box-shadow: 0 4px 14px rgba(15, 39, 74, 0.16);
+      cursor: pointer;
+    }
+    #switchBtn[hidden] { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- หน้าเข้าสู่ระบบด้วยรหัสประจำตัวนักเรียน -->
+  <div id="loginView" hidden>
+    <div class="card">
+      <img class="crest" src="https://lh3.googleusercontent.com/d/1i2XJAMH7gTxs2MJ0K8xRqTiI_iS7u_8v=s0" alt="ตราโรงเรียน">
+      <h1>บัตรนักเรียนดิจิทัล</h1>
+      <p>โรงเรียนคลองพนสฤษดิ์พิทยา</p>
+      <label class="lbl" for="sidInp">รหัสประจำตัวนักเรียน</label>
+      <input id="sidInp" class="inp" inputmode="numeric" maxlength="12" placeholder="เช่น 8628" autocomplete="off">
+      <div id="errTxt" class="err"></div>
+      <button type="button" class="btn" id="goBtn">เปิดบัตรนักเรียนดิจิทัล →</button>
+      <div class="hint">กรอกเฉพาะครั้งแรก ระบบจะจำรหัสไว้ในเครื่องนี้<br>เพื่อเปิดดูบัตรและคะแนนพฤติกรรมได้ทันทีในครั้งถัดไป</div>
+    </div>
+  </div>
+
+  <!-- หน้าโหลด -->
+  <div id="splash" class="hide">
+    <img class="crest" src="https://lh3.googleusercontent.com/d/1i2XJAMH7gTxs2MJ0K8xRqTiI_iS7u_8v=s0" alt="ตราโรงเรียน" style="margin-bottom:4px">
+    <div style="font-weight:700;font-size:17px">กำลังเปิดบัตรนักเรียนดิจิทัล…</div>
+    <div class="spin"></div>
+  </div>
+
+  <iframe id="cardFrame" allowfullscreen></iframe>
+  <button type="button" id="switchBtn" hidden>🔄 เปลี่ยนรหัสนักเรียน</button>
+
+  <script>
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzK2I2myyJtRjp1690NUZ8yqv6kZhEHmUfg1qS6jBuStswVKpPmQFICfHNFcA_QHXvHdA/exec';
+    const KEY = 'kpsp_student_sid';
+
+    const loginView = document.getElementById('loginView');
+    const splash = document.getElementById('splash');
+    const frame = document.getElementById('cardFrame');
+    const switchBtn = document.getElementById('switchBtn');
+    const sidInp = document.getElementById('sidInp');
+    const errTxt = document.getElementById('errTxt');
+
+    function openCard(sid) {
+      const clean = String(sid || '').replace(/\D/g, '').trim();
+      if (!clean) return;
+      try { localStorage.setItem(KEY, clean); } catch (e) {}
+      loginView.hidden = true;
+      splash.classList.remove('hide');
+      switchBtn.hidden = false;
+      frame.src = APPS_SCRIPT_URL + '?card=' + encodeURIComponent(clean);
+    }
+
+    frame.addEventListener('load', () => {
+      splash.classList.add('hide');
+    });
+
+    function submitSid() {
+      const v = sidInp.value.replace(/\D/g, '').trim();
+      if (v.length < 3) {
+        errTxt.textContent = 'กรุณากรอกรหัสประจำตัวนักเรียนให้ถูกต้อง';
+        sidInp.focus();
+        return;
+      }
+      errTxt.textContent = '';
+      openCard(v);
+    }
+
+    document.getElementById('goBtn').onclick = submitSid;
+    sidInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitSid(); });
+
+    switchBtn.onclick = () => {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      frame.src = 'about:blank';
+      switchBtn.hidden = true;
+      sidInp.value = '';
+      errTxt.textContent = '';
+      loginView.hidden = false;
+      setTimeout(() => sidInp.focus(), 80);
+    };
+
+    /* ตรวจสอบพารามิเตอร์ ?card= หรือรหัสที่เคยจำไว้ในเครื่อง */
+    const urlSid = new URLSearchParams(window.location.search).get('card');
+    let savedSid = '';
+    try { savedSid = localStorage.getItem(KEY) || ''; } catch (e) {}
+
+    if (urlSid) {
+      openCard(urlSid);
+    } else if (savedSid) {
+      openCard(savedSid);
+    } else {
+      loginView.hidden = false;
+      setTimeout(() => sidInp.focus(), 100);
+    }
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

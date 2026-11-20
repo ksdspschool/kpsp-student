@@ -1,0 +1,25 @@
+{
+  "name": "ระบบฝ่ายกิจการนักเรียน โรงเรียนคลองพนสฤษดิ์พิทยา",
+  "short_name": "กิจการนักเรียน",
+  "description": "ระบบโฮมรูม ตรวจระเบียบ ตรวจจราจร เข้ากิจกรรม และบัตรนักเรียนดิจิทัล",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b2e78",
+  "theme_color": "#0b2e78",
+  "icons": [
+    {
+      "src": "https://lh3.googleusercontent.com/d/1i2XJAMH7gTxs2MJ0K8xRqTiI_iS7u_8v=s0",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://lh3.googleusercontent.com/d/1i2XJAMH7gTxs2MJ0K8xRqTiI_iS7u_8v=s0",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
