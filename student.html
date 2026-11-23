@@ -23,6 +23,8 @@
       width: 100%;
       height: 100dvh;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
       background: #0b2e78;
       font-family: 'Sarabun', system-ui, -apple-system, sans-serif;
     }
@@ -157,24 +159,6 @@
       display: block;
       background: #f0f5fc;
     }
-
-    /* ปุ่มเล็กมุมขวาล่างสำหรับสลับรหัสนักเรียน (เผื่อผู้ปกครองมีลูกหลายคน) */
-    #switchBtn {
-      position: fixed;
-      right: 12px;
-      bottom: calc(12px + env(safe-area-inset-bottom));
-      z-index: 12;
-      border: 1px solid rgba(203, 213, 225, 0.9);
-      background: rgba(255, 255, 255, 0.92);
-      backdrop-filter: blur(8px);
-      color: #123d78;
-      border-radius: 99px;
-      padding: 7px 13px;
-      font: 700 12px/1 'Sarabun', sans-serif;
-      box-shadow: 0 4px 14px rgba(15, 39, 74, 0.16);
-      cursor: pointer;
-    }
-    #switchBtn[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -187,9 +171,11 @@
       <p>โรงเรียนคลองพนสฤษดิ์พิทยา</p>
       <label class="lbl" for="sidInp">รหัสประจำตัวนักเรียน</label>
       <input id="sidInp" class="inp" inputmode="numeric" maxlength="12" placeholder="เช่น 8628" autocomplete="off">
+      <label class="lbl" for="pinInp">เลขประจำตัวประชาชน 4 ตัวสุดท้าย</label>
+      <input id="pinInp" class="inp" type="password" inputmode="numeric" maxlength="4" placeholder="เช่น 1234" autocomplete="off">
       <div id="errTxt" class="err"></div>
       <button type="button" class="btn" id="goBtn">เปิดบัตรนักเรียนดิจิทัล →</button>
-      <div class="hint">กรอกเฉพาะครั้งแรก ระบบจะจำรหัสไว้ในเครื่องนี้<br>เพื่อเปิดดูบัตรและคะแนนพฤติกรรมได้ทันทีในครั้งถัดไป</div>
+      <div class="hint">กรอกเฉพาะครั้งแรก ระบบจะจำข้อมูลไว้ในเครื่องนี้<br>เพื่อเปิดดูบัตรและคะแนนพฤติกรรมได้ทันทีในครั้งถัดไป</div>
     </div>
   </div>
 
@@ -201,28 +187,58 @@
   </div>
 
   <iframe id="cardFrame" allowfullscreen></iframe>
-  <button type="button" id="switchBtn" hidden>🔄 เปลี่ยนรหัสนักเรียน</button>
 
   <script>
     const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzK2I2myyJtRjp1690NUZ8yqv6kZhEHmUfg1qS6jBuStswVKpPmQFICfHNFcA_QHXvHdA/exec';
     const KEY = 'kpsp_student_sid';
+    const PIN_KEY = 'kpsp_student_pin';
 
     const loginView = document.getElementById('loginView');
     const splash = document.getElementById('splash');
     const frame = document.getElementById('cardFrame');
-    const switchBtn = document.getElementById('switchBtn');
     const sidInp = document.getElementById('sidInp');
+    const pinInp = document.getElementById('pinInp');
     const errTxt = document.getElementById('errTxt');
+    let pendingSid = '';
+    let pendingPin = '';
 
-    function openCard(sid) {
-      const clean = String(sid || '').replace(/\D/g, '').trim();
-      if (!clean) return;
-      try { localStorage.setItem(KEY, clean); } catch (e) {}
+    function openCard(sid, pin) {
+      const cleanSid = String(sid || '').replace(/\D/g, '').trim();
+      const cleanPin = String(pin || '').replace(/\D/g, '').trim();
+      if (!cleanSid || cleanPin.length !== 4) return;
+      pendingSid = cleanSid;
+      pendingPin = cleanPin;
       loginView.hidden = true;
       splash.classList.remove('hide');
-      switchBtn.hidden = false;
-      frame.src = APPS_SCRIPT_URL + '?card=' + encodeURIComponent(clean);
+      frame.src = APPS_SCRIPT_URL + '?card=' + encodeURIComponent(cleanSid) + '&pin=' + encodeURIComponent(cleanPin);
     }
+
+    window.addEventListener('message', (e) => {
+      const d = e && e.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === 'kpsp_card_ok') {
+        const okSid = String(d.sid || pendingSid || '').replace(/\D/g, '').trim();
+        const okPin = String(d.pin || pendingPin || '').replace(/\D/g, '').trim();
+        if (okSid && okPin.length === 4) {
+          try {
+            localStorage.setItem(KEY, okSid);
+            localStorage.setItem(PIN_KEY, okPin);
+          } catch (err) {}
+        }
+      } else if (d.type === 'kpsp_card_retry') {
+        try {
+          localStorage.removeItem(KEY);
+          localStorage.removeItem(PIN_KEY);
+        } catch (err) {}
+        frame.src = 'about:blank';
+        splash.classList.add('hide');
+        sidInp.value = pendingSid;
+        pinInp.value = '';
+        errTxt.textContent = d.error || 'กรุณาตรวจสอบรหัสนักเรียนและเลขประจำตัวประชาชน 4 ตัวสุดท้ายอีกครั้ง';
+        loginView.hidden = false;
+        setTimeout(() => sidInp.focus(), 80);
+      }
+    });
 
     frame.addEventListener('load', () => {
       splash.classList.add('hide');
@@ -230,37 +246,50 @@
 
     function submitSid() {
       const v = sidInp.value.replace(/\D/g, '').trim();
+      const p = pinInp.value.replace(/\D/g, '').trim();
       if (v.length < 3) {
         errTxt.textContent = 'กรุณากรอกรหัสประจำตัวนักเรียนให้ถูกต้อง';
         sidInp.focus();
         return;
       }
+      if (p.length !== 4) {
+        errTxt.textContent = 'กรุณากรอกเลขประจำตัวประชาชน 4 ตัวสุดท้ายให้ครบ 4 หลัก';
+        pinInp.focus();
+        return;
+      }
       errTxt.textContent = '';
-      openCard(v);
+      openCard(v, p);
     }
 
     document.getElementById('goBtn').onclick = submitSid;
-    sidInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitSid(); });
+    sidInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') pinInp.focus(); });
+    pinInp.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitSid(); });
 
-    switchBtn.onclick = () => {
-      try { localStorage.removeItem(KEY); } catch (e) {}
-      frame.src = 'about:blank';
-      switchBtn.hidden = true;
-      sidInp.value = '';
-      errTxt.textContent = '';
-      loginView.hidden = false;
-      setTimeout(() => sidInp.focus(), 80);
-    };
+    /* ตรวจสอบพารามิเตอร์ ?reset=1, ?card= หรือรหัสที่เคยจำไว้ในเครื่อง */
+    const qs = new URLSearchParams(window.location.search);
+    if (qs.get('reset') === '1') {
+      try {
+        localStorage.removeItem(KEY);
+        localStorage.removeItem(PIN_KEY);
+      } catch (e) {}
+    }
 
-    /* ตรวจสอบพารามิเตอร์ ?card= หรือรหัสที่เคยจำไว้ในเครื่อง */
-    const urlSid = new URLSearchParams(window.location.search).get('card');
+    const urlSid = (qs.get('card') || '').replace(/\D/g, '').trim();
     let savedSid = '';
-    try { savedSid = localStorage.getItem(KEY) || ''; } catch (e) {}
+    let savedPin = '';
+    try {
+      savedSid = localStorage.getItem(KEY) || '';
+      savedPin = localStorage.getItem(PIN_KEY) || '';
+    } catch (e) {}
 
-    if (urlSid) {
-      openCard(urlSid);
-    } else if (savedSid) {
-      openCard(savedSid);
+    if (urlSid && urlSid === savedSid && savedPin.length === 4) {
+      openCard(urlSid, savedPin);
+    } else if (urlSid) {
+      sidInp.value = urlSid;
+      loginView.hidden = false;
+      setTimeout(() => pinInp.focus(), 100);
+    } else if (savedSid && savedPin.length === 4) {
+      openCard(savedSid, savedPin);
     } else {
       loginView.hidden = false;
       setTimeout(() => sidInp.focus(), 100);
